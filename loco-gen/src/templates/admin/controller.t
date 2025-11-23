@@ -74,14 +74,6 @@ pub async fn list(
     State(ctx): State<AppContext>,
     Query(query): Query<ListQuery>,
 ) -> Result<Response> {
-    let mut query_builder = Entity::find();
-    
-    // Search functionality
-    if let Some(ref search) = query.search {
-        // Simple search - can be enhanced
-        // For now, we'll do a basic text search on string fields
-    }
-    
     // Sorting
     let sort_column = query.sort.as_deref().unwrap_or("id");
     let order = if sort_column.starts_with('-') {
@@ -95,7 +87,7 @@ pub async fn list(
     let per_page = 20;
     let offset = ((page - 1) * per_page) as u64;
     
-    let items = query_builder
+    let items = Entity::find()
         .order_by(Column::Id, order)
         .limit(per_page)
         .offset(offset)
@@ -112,7 +104,11 @@ pub async fn list(
 pub async fn new(
     _auth: auth::JWT,
     ViewEngine(v): ViewEngine<TeraView>,
+    {% if foreign_keys | length > 0 -%}
     State(ctx): State<AppContext>,
+    {%- else -%}
+    State(_ctx): State<AppContext>,
+    {%- endif %}
 ) -> Result<Response> {
     {% for fk in foreign_keys -%}
     let {{fk.related_module}}_items = crate::models::_entities::{{fk.related_module}}::Entity::find()
@@ -141,7 +137,11 @@ pub async fn edit(
     _auth: auth::JWT,
     Path(id): Path<i32>,
     ViewEngine(v): ViewEngine<TeraView>,
+    {% if foreign_keys | length > 0 -%}
     State(ctx): State<AppContext>,
+    {%- else -%}
+    State(_ctx): State<AppContext>,
+    {%- endif %}
 ) -> Result<Response> {
     let item = load_item(&ctx, id).await?;
     {% for fk in foreign_keys -%}

@@ -9,13 +9,10 @@ pub mod {{entity.module_name}};
 use loco_rs::prelude::*;
 
 pub fn routes() -> Routes {
-    let mut routes = Routes::new();
-    
-    routes = routes.add_route(dashboard::routes());
-    {% for entity in entities -%}
-    routes = routes.add_route({{entity.module_name}}::routes());
-    {% endfor -%}
-    
-    routes
+    Routes::new()
+        .merge(dashboard::routes())
+        {% for entity in entities -%}
+        .merge({{entity.module_name}}::routes())
+        {% endfor -%}
 }
 
