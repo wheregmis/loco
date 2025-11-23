@@ -1,13 +1,5 @@
 to: src/controllers/admin/mod.rs
-skip_exists: true
 message: "Admin routes module was added successfully."
-injections:
-- into: src/controllers/mod.rs
-  append: true
-  content: "pub mod admin;"
-- into: src/app.rs
-  after: "AppRoutes::"
-  content: "            .add_route(controllers::admin::routes())"
 ---
 pub mod dashboard;
 {% for entity in entities -%}

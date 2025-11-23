@@ -47,6 +47,8 @@ pub fn discover_entities(exclude: &[String]) -> Result<Vec<EntityInfo>> {
     let entries = fs::read_dir(entities_dir)
         .map_err(|e| Error::Message(format!("Failed to read entities directory: {}", e)))?;
 
+    let denylist = ["mod", "prelude"];
+
     for entry in entries {
         let entry =
             entry.map_err(|e| Error::Message(format!("Failed to read directory entry: {}", e)))?;
@@ -59,7 +61,7 @@ pub fn discover_entities(exclude: &[String]) -> Result<Vec<EntityInfo>> {
                 .ok_or_else(|| Error::Message("Invalid file name".to_string()))?;
 
             // Skip mod.rs
-            if file_name == "mod" {
+            if denylist.contains(&file_name) {
                 continue;
             }
 
