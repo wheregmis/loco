@@ -61,8 +61,10 @@ pub fn create(
     format::render().view(
         v,
         "admin/{{file_name}}/create.html",
-        data!({{% for fk in foreign_keys %}
-            "{{fk.related_module}}_items": {{fk.related_module}}_items,{% endfor %}
+        data!({
+            {% for fk in foreign_keys %}
+            "{{fk.related_module}}_items": {{fk.related_module}}_items{% if not loop.last %},{% endif %}
+            {% endfor %}
         }),
     )
 }
