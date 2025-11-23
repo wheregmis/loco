@@ -235,6 +235,8 @@ pub fn generate(
     prefix: &str,
     appinfo: &AppInfo,
 ) -> Result<GenerateResults> {
+    ensure_admin_module_files()?;
+
     let entities = discover_entities(exclude)?;
 
     if entities.is_empty() {
@@ -351,6 +353,31 @@ pub fn generate(
         .extend(dashboard_html_result.local_templates);
 
     Ok(gen_result)
+}
+
+fn ensure_admin_module_files() -> Result<()> {
+    create_mod_file_if_missing(
+        Path::new("src/controllers/admin/mod.rs"),
+        "//! Auto-generated admin controllers module.\n",
+    )?;
+    create_mod_file_if_missing(
+        Path::new("src/views/admin/mod.rs"),
+        "//! Auto-generated admin views module.\n",
+    )?;
+    Ok(())
+}
+
+fn create_mod_file_if_missing(path: &Path, header: &str) -> Result<()> {
+    if path.exists() {
+        return Ok(());
+    }
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    fs::write(path, header)?;
+    Ok(())
 }
 
 /// Generate admin controller and views for a single entity
