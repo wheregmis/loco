@@ -26,7 +26,7 @@ use loco_rs::controller::extractor::auth;
 pub struct Params {
     {% for field in form_fields -%}
     {%- if field.is_nullable or field.is_foreign_key -%}
-    pub {{field.name}}: Option<{{field.rust_type | replace('Option<', '') | replace('>', '')}}>,
+    pub {{field.name}}: Option<{{field.rust_type | replace(from="Option<", to="") | replace(from=">", to="")}}>,
     {%- else -%}
     pub {{field.name}}: {{field.rust_type}},
     {%- endif %}
