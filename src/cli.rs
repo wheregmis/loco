@@ -343,6 +343,27 @@ After running the migration, follow these steps to complete the process:
         /// Name of the thing to generate
         name: String,
     },
+    #[cfg(feature = "with-db")]
+    /// Generate an automatic admin panel for all models
+    #[command(after_help = format!("{}
+  - Generate admin panel for all models:
+      $ cargo loco generate admin
+
+  - Generate admin panel with custom prefix:
+      $ cargo loco generate admin --prefix /admin
+
+  - Generate admin panel excluding specific models:
+      $ cargo loco generate admin --exclude users --exclude sessions
+", "Examples:".bold().underline()))]
+    Admin {
+        /// Models to exclude from admin panel
+        #[arg(long, action)]
+        exclude: Vec<String>,
+
+        /// Admin route prefix (default: /admin)
+        #[arg(long, default_value = "/admin")]
+        prefix: String,
+    },
     /// Generate a deployment infrastructure
     Deployment {
         /// The type of deployment to generate
@@ -463,6 +484,11 @@ impl ComponentArg {
             Self::Worker { name } => Ok(loco_gen::Component::Worker { name }),
             Self::Mailer { name } => Ok(loco_gen::Component::Mailer { name }),
             Self::Data { name } => Ok(loco_gen::Component::Data { name }),
+            #[cfg(feature = "with-db")]
+            Self::Admin { exclude, prefix } => Ok(loco_gen::Component::Admin {
+                exclude,
+                prefix,
+            }),
             Self::Deployment { kind } => Ok(kind.to_generator_component(config)),
             Self::Override {
                 template_path: _,

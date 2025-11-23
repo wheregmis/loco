@@ -16,6 +16,8 @@ use std::{
 };
 
 #[cfg(feature = "with-db")]
+mod admin;
+#[cfg(feature = "with-db")]
 mod infer;
 #[cfg(feature = "with-db")]
 mod migration;
@@ -302,6 +304,13 @@ pub enum Component {
         /// Name of the thing to generate
         name: String,
     },
+    #[cfg(feature = "with-db")]
+    Admin {
+        /// Models to exclude from admin panel
+        exclude: Vec<String>,
+        /// Admin route prefix
+        prefix: String,
+    },
     Deployment {
         kind: DeploymentKind,
     },
@@ -404,6 +413,10 @@ pub fn generate(rrgen: &RRgen, component: Component, appinfo: &AppInfo) -> Resul
         Component::Data { name } => {
             let vars = json!({ "name": name });
             render_template(rrgen, Path::new("data"), &vars)?
+        }
+        #[cfg(feature = "with-db")]
+        Component::Admin { exclude, prefix } => {
+            admin::generate(rrgen, &exclude, &prefix, appinfo)?
         }
     };
 
