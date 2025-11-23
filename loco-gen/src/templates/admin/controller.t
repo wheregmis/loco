@@ -137,11 +137,7 @@ pub async fn edit(
     _auth: auth::JWT,
     Path(id): Path<i32>,
     ViewEngine(v): ViewEngine<TeraView>,
-    {% if foreign_keys | length > 0 -%}
     State(ctx): State<AppContext>,
-    {%- else -%}
-    State(_ctx): State<AppContext>,
-    {%- endif %}
 ) -> Result<Response> {
     let item = load_item(&ctx, id).await?;
     {% for fk in foreign_keys -%}
