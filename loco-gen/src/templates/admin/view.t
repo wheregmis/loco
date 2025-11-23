@@ -10,20 +10,20 @@ injections:
 ---
 use loco_rs::prelude::*;
 
-use crate::models::_entities::{{name | plural}};
+use crate::models::_entities::{{module_name}};
 
 {% for fk in foreign_keys -%}
-use crate::models::_entities::{{fk.related_entity | plural}};
+use crate::models::_entities::{{fk.related_module}};
 {% endfor -%}
 
-/// Render a list view of `{{name | plural}}`.
+/// Render a list view of `{{module_name}}`.
 ///
 /// # Errors
 ///
 /// When there is an issue with rendering the view.
 pub fn list(
     v: &impl ViewRenderer,
-    items: &Vec<{{name | plural}}::Model>,
+    items: &Vec<{{module_name}}::Model>,
     page: u64,
     total_pages: u64,
     search: &Option<String>,
@@ -45,7 +45,7 @@ pub fn list(
 /// # Errors
 ///
 /// When there is an issue with rendering the view.
-pub fn show(v: &impl ViewRenderer, item: &{{name | plural}}::Model) -> Result<Response> {
+pub fn show(v: &impl ViewRenderer, item: &{{module_name}}::Model) -> Result<Response> {
     format::render().view(v, "admin/{{file_name}}/show.html", data!({"item": item}))
 }
 
@@ -56,7 +56,7 @@ pub fn show(v: &impl ViewRenderer, item: &{{name | plural}}::Model) -> Result<Re
 /// When there is an issue with rendering the view.
 pub fn create(
     v: &impl ViewRenderer{% for fk in foreign_keys %},
-    {{fk.related_module}}_items: &Vec<{{fk.related_entity | plural}}::Model>{% endfor %}
+    {{fk.related_module}}_items: &Vec<{{fk.related_module}}::Model>{% endfor %}
 ) -> Result<Response> {
     format::render().view(
         v,
@@ -76,8 +76,8 @@ pub fn create(
 /// When there is an issue with rendering the view.
 pub fn edit(
     v: &impl ViewRenderer,
-    item: &{{name | plural}}::Model{% for fk in foreign_keys %},
-    {{fk.related_module}}_items: &Vec<{{fk.related_entity | plural}}::Model>{% endfor %}
+    item: &{{module_name}}::Model{% for fk in foreign_keys %},
+    {{fk.related_module}}_items: &Vec<{{fk.related_module}}::Model>{% endfor %}
 ) -> Result<Response> {
     format::render().view(
         v,

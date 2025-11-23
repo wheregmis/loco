@@ -23,12 +23,13 @@ pub struct FieldInfo {
     pub is_primary: bool,
     pub is_foreign_key: bool,
     pub related_entity: Option<String>,
+    pub related_module: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ForeignKeyInfo {
     pub field_name: String,
-    pub related_entity: String,
+    pub related_module: String,
 }
 
 /// Discover all entities in the project
@@ -71,7 +72,7 @@ pub fn discover_entities(exclude: &[String]) -> Result<Vec<EntityInfo>> {
                 continue;
             }
 
-            match parse_entity_file(&path, file_name) {
+            match parse_entity_file(&path, file_name, entities_dir) {
                 Ok(entity) => entities.push(entity),
                 Err(e) => {
                     tracing::warn!(file = ?path, error = %e, "Failed to parse entity file, skipping");
@@ -84,7 +85,7 @@ pub fn discover_entities(exclude: &[String]) -> Result<Vec<EntityInfo>> {
 }
 
 /// Parse an entity file to extract model information
-fn parse_entity_file(path: &Path, entity_name: &str) -> Result<EntityInfo> {
+fn parse_entity_file(path: &Path, entity_name: &str, entities_dir: &Path) -> Result<EntityInfo> {
     let content = fs::read_to_string(path).map_err(|e| {
         Error::Message(format!(
             "Failed to read entity file {}: {}",
@@ -130,20 +131,25 @@ fn parse_entity_file(path: &Path, entity_name: &str) -> Result<EntityInfo> {
 
             // Check if it's a foreign key (ends with _id)
             let is_foreign_key = field_name.ends_with("_id");
-            let related_entity = if is_foreign_key {
-                // Extract entity name from field name (e.g., user_id -> users)
+            let raw_related_entity = if is_foreign_key {
                 let base = field_name.strip_suffix("_id").unwrap_or(&field_name);
                 let snake_case: String = heck::ToSnakeCase::to_snake_case(base);
-                Some(snake_case.to_plural())
+                Some(snake_case)
             } else {
                 None
             };
 
+            let related_module = raw_related_entity
+                .as_ref()
+                .map(|entity| resolve_related_entity_module(entity, entities_dir));
+
+            let related_entity = related_module.clone();
+
             if is_foreign_key {
-                if let Some(entity) = &related_entity {
+                if let Some(module) = &related_module {
                     foreign_keys.push(ForeignKeyInfo {
                         field_name: field_name.clone(),
-                        related_entity: entity.clone(),
+                        related_module: module.clone(),
                     });
                 }
             }
@@ -155,6 +161,7 @@ fn parse_entity_file(path: &Path, entity_name: &str) -> Result<EntityInfo> {
                 is_primary,
                 is_foreign_key,
                 related_entity,
+                related_module,
             });
         }
 
@@ -172,6 +179,28 @@ fn parse_entity_file(path: &Path, entity_name: &str) -> Result<EntityInfo> {
         primary_key,
         foreign_keys,
     })
+}
+
+fn resolve_related_entity_module(base: &str, entities_dir: &Path) -> String {
+    let snake = heck::ToSnakeCase::to_snake_case(base);
+    let mut candidates = vec![snake.clone()];
+    let plural = snake.to_plural();
+    if plural != snake {
+        candidates.push(plural);
+    }
+    let singular = snake.to_singular();
+    if singular != snake {
+        candidates.push(singular);
+    }
+
+    for candidate in candidates {
+        let path = entities_dir.join(format!("{candidate}.rs"));
+        if path.exists() {
+            return candidate;
+        }
+    }
+
+    snake
 }
 
 /// Infer HTML input type from Rust type
@@ -236,6 +265,8 @@ pub fn generate(
     appinfo: &AppInfo,
 ) -> Result<GenerateResults> {
     ensure_admin_module_files()?;
+    ensure_top_level_modules()?;
+    ensure_admin_routes_registered()?;
 
     let entities = discover_entities(exclude)?;
 
@@ -380,6 +411,68 @@ fn create_mod_file_if_missing(path: &Path, header: &str) -> Result<()> {
     Ok(())
 }
 
+fn ensure_top_level_modules() -> Result<()> {
+    ensure_module_export(Path::new("src/controllers/mod.rs"), "pub mod admin;")?;
+    ensure_module_export(Path::new("src/views/mod.rs"), "pub mod admin;")?;
+    Ok(())
+}
+
+fn ensure_module_export(path: &Path, module_line: &str) -> Result<()> {
+    if !path.exists() {
+        return Ok(());
+    }
+
+    let mut content = fs::read_to_string(path)?;
+    if content.contains(module_line) {
+        return Ok(());
+    }
+
+    if !content.ends_with('\n') {
+        content.push('\n');
+    }
+    content.push_str(module_line);
+    content.push('\n');
+    fs::write(path, content)?;
+    Ok(())
+}
+
+fn ensure_admin_routes_registered() -> Result<()> {
+    let path = Path::new("src/app.rs");
+    if !path.exists() {
+        return Ok(());
+    }
+
+    let content = fs::read_to_string(path)?;
+    let registration_line = "            .add_route(controllers::admin::routes())";
+    if content.contains(registration_line) {
+        return Ok(());
+    }
+
+    let anchors = [
+        "            .add_route(controllers::auth::routes())",
+        "            .add_route(controllers::home::routes())",
+        "AppRoutes::with_default_routes() // controller routes below",
+    ];
+
+    if let Some(pos) = anchors
+        .iter()
+        .find_map(|anchor| content.find(anchor).map(|idx| idx + anchor.len()))
+    {
+        let mut new_content = String::with_capacity(content.len() + registration_line.len() + 1);
+        let (head, tail) = content.split_at(pos);
+        new_content.push_str(head);
+        new_content.push('\n');
+        new_content.push_str(registration_line);
+        new_content.push_str(tail);
+        fs::write(path, new_content)?;
+        return Ok(());
+    }
+
+    Err(Error::Message(
+        "Could not find insertion point for admin routes in src/app.rs".to_string(),
+    ))
+}
+
 /// Generate admin controller and views for a single entity
 fn generate_entity_admin(
     rrgen: &RRgen,
@@ -406,8 +499,9 @@ fn generate_entity_admin(
             "is_foreign_key": field.is_foreign_key,
         });
 
-        if let Some(ref related_entity) = field.related_entity {
-            field_info["related_entity"] = json!(related_entity);
+        if let Some(ref related_module) = field.related_module {
+            field_info["related_entity"] = json!(related_module.to_pascal_case());
+            field_info["related_module"] = json!(related_module);
         }
 
         form_fields.push(field_info.clone());
@@ -425,8 +519,8 @@ fn generate_entity_admin(
         "foreign_keys": entity.foreign_keys.iter().map(|fk| {
             json!({
                 "field_name": fk.field_name.clone(),
-                "related_entity": fk.related_entity.clone(),
-                "related_module": fk.related_entity.to_snake_case(),
+                "related_entity": fk.related_module.to_pascal_case(),
+                "related_module": fk.related_module.clone(),
             })
         }).collect::<Vec<_>>(),
         "prefix": prefix,
@@ -461,9 +555,9 @@ fn generate_entity_views(
             "is_foreign_key": field.is_foreign_key,
         });
 
-        if let Some(ref related_entity) = field.related_entity {
-            field_info["related_entity"] = json!(related_entity);
-            field_info["related_module"] = json!(related_entity.to_snake_case());
+        if let Some(ref related_module) = field.related_module {
+            field_info["related_entity"] = json!(related_module.to_pascal_case());
+            field_info["related_module"] = json!(related_module);
         }
 
         columns.push(field_info.clone());
@@ -485,8 +579,8 @@ fn generate_entity_views(
         "foreign_keys": entity.foreign_keys.iter().map(|fk| {
             json!({
                 "field_name": fk.field_name.clone(),
-                "related_entity": fk.related_entity.clone(),
-                "related_module": fk.related_entity.to_snake_case(),
+                "related_entity": fk.related_module.to_pascal_case(),
+                "related_module": fk.related_module.clone(),
             })
         }).collect::<Vec<_>>(),
         "prefix": prefix,

@@ -11,13 +11,13 @@ injections:
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::unnecessary_struct_initialization)]
 #![allow(clippy::unused_async)]
+use axum::extract::Query;
 use loco_rs::prelude::*;
 use serde::{Deserialize, Serialize};
-use sea_orm::{sea_query::Order, QueryOrder};
-use axum_extra::extract::Query;
+use sea_orm::{sea_query::Order, PaginatorTrait, QueryOrder, QuerySelect};
 
 use crate::{
-    models::_entities::{{name | plural}}::{ActiveModel, Column, Entity, Model},
+    models::_entities::{{module_name}}::{ActiveModel, Column, Entity, Model},
     views,
 };
 use loco_rs::controller::extractor::auth;
@@ -37,7 +37,7 @@ impl Params {
     fn update(&self, item: &mut ActiveModel) {
       {% for field in form_fields -%}
       {%- if field.is_foreign_key -%}
-      if let Some(val) = self.{{field.name}} {
+      if let Some(val) = self.{{field.name}}.clone() {
           item.{{field.name}} = Set(Some(val));
       } else {
           item.{{field.name}} = Set(None);
@@ -45,7 +45,7 @@ impl Params {
       {%- elif "Vec<" in field.rust_type -%}
       item.{{field.name}} = Set(self.{{field.name}}.clone());
       {%- elif field.is_nullable -%}
-      item.{{field.name}} = Set(self.{{field.name}});
+      item.{{field.name}} = Set(self.{{field.name}}.clone());
       {%- elif "i32" in field.rust_type or "i64" in field.rust_type or "i16" in field.rust_type or "Uuid" in field.rust_type or "f32" in field.rust_type or "f64" in field.rust_type or "Decimal" in field.rust_type or "bool" in field.rust_type or "Date" in field.rust_type or "DateTime" in field.rust_type or "DateTimeWithTimeZone" in field.rust_type -%}
       item.{{field.name}} = Set(self.{{field.name}});
       {%- else -%}
@@ -115,7 +115,7 @@ pub async fn new(
     State(ctx): State<AppContext>,
 ) -> Result<Response> {
     {% for fk in foreign_keys -%}
-    let {{fk.related_module}}_items = crate::models::_entities::{{fk.related_entity | plural}}::Entity::find()
+    let {{fk.related_module}}_items = crate::models::_entities::{{fk.related_module}}::Entity::find()
         .all(&ctx.db)
         .await?;
     {% endfor -%}
@@ -145,7 +145,7 @@ pub async fn edit(
 ) -> Result<Response> {
     let item = load_item(&ctx, id).await?;
     {% for fk in foreign_keys -%}
-    let {{fk.related_module}}_items = crate::models::_entities::{{fk.related_entity | plural}}::Entity::find()
+    let {{fk.related_module}}_items = crate::models::_entities::{{fk.related_module}}::Entity::find()
         .all(&ctx.db)
         .await?;
     {% endfor -%}
