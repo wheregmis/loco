@@ -145,8 +145,16 @@ impl Routes {
     /// ```
     #[must_use]
     pub fn merge(mut self, other: Self) -> Self {
-        // Extend the handlers vector with all handlers from the other Routes
-        self.handlers.extend(other.handlers);
+        if let Some(prefix) = other.prefix {
+            for mut handler in other.handlers {
+                handler.uri = normalize_with_prefix(&prefix, &handler.uri);
+                self.handlers.push(handler);
+            }
+        } else {
+            // Extend the handlers vector with all handlers from the other Routes
+            self.handlers.extend(other.handlers);
+        }
+
         self
     }
 
@@ -195,10 +203,10 @@ impl Routes {
     /// ```
     #[must_use]
     pub fn merge_all(mut self, others: Vec<Self>) -> Self {
-        // Extend the handlers vector with all handlers from all Routes
         for other in others {
-            self.handlers.extend(other.handlers);
+            self = self.merge(other);
         }
+
         self
     }
 
@@ -358,6 +366,59 @@ impl Routes {
     }
 }
 
+fn normalize_with_prefix(prefix: &str, uri: &str) -> String {
+    let mut parts = Vec::new();
+
+    let trimmed_prefix = prefix.trim();
+    if !trimmed_prefix.is_empty() {
+        parts.push(trimmed_prefix.to_string());
+    }
+
+    let trimmed_uri = uri.trim();
+    if !trimmed_uri.is_empty() {
+        parts.push(trimmed_uri.to_string());
+    }
+
+    let mut combined = if parts.is_empty() {
+        "/".to_string()
+    } else {
+        collapse_slashes(parts.join("/"))
+    };
+
+    if combined.len() > 1 && combined.ends_with('/') {
+        combined.pop();
+    }
+
+    if !combined.starts_with('/') {
+        combined.insert(0, '/');
+    }
+
+    combined
+}
+
+fn collapse_slashes(input: String) -> String {
+    let mut result = String::with_capacity(input.len());
+    let mut prev_was_slash = false;
+
+    for ch in input.chars() {
+        if ch == '/' {
+            if !prev_was_slash {
+                result.push('/');
+                prev_was_slash = true;
+            }
+        } else {
+            result.push(ch);
+            prev_was_slash = false;
+        }
+    }
+
+    if result.is_empty() {
+        result.push('/');
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -374,6 +435,39 @@ mod tests {
 
     async fn ping() -> Result<Response> {
         format::json("pong")
+    }
+
+    #[test]
+    fn merge_preserves_prefixed_routes() {
+        let prefixed = Routes::new()
+            .prefix("/admin/posts/")
+            .add("/", get(users))
+            .add("/{id}", get(user_detail));
+
+        let merged = Routes::new().merge(prefixed);
+
+        assert_eq!(merged.handlers.len(), 2);
+        assert_eq!(merged.handlers[0].uri, "/admin/posts");
+        assert_eq!(merged.handlers[1].uri, "/admin/posts/{id}");
+    }
+
+    #[test]
+    fn merge_all_preserves_mixed_prefixes() {
+        let posts = Routes::new()
+            .prefix("admin/posts")
+            .add("/", get(users))
+            .add("/new", get(user_detail));
+
+        let dashboard = Routes::new()
+            .prefix("/admin")
+            .add("/", get(ping));
+
+        let merged = Routes::new().merge_all(vec![posts, dashboard]);
+
+        assert_eq!(merged.handlers.len(), 3);
+        assert_eq!(merged.handlers[0].uri, "/admin/posts");
+        assert_eq!(merged.handlers[1].uri, "/admin/posts/new");
+        assert_eq!(merged.handlers[2].uri, "/admin");
     }
 
     #[test]
