@@ -264,7 +264,7 @@ pub fn generate(
     });
 
     let dashboard_result =
-        crate::render_template(rrgen, Path::new("admin/dashboard"), &dashboard_vars)?;
+        crate::render_template(rrgen, Path::new("admin/dashboard.t"), &dashboard_vars)?;
     gen_result.rrgen.extend(dashboard_result.rrgen);
     gen_result
         .local_templates
@@ -292,7 +292,7 @@ pub fn generate(
         "pkg_name": appinfo.app_name
     });
 
-    let routes_result = crate::render_template(rrgen, Path::new("admin/routes"), &routes_vars)?;
+    let routes_result = crate::render_template(rrgen, Path::new("admin/routes.t"), &routes_vars)?;
     gen_result.rrgen.extend(routes_result.rrgen);
     gen_result
         .local_templates
@@ -321,7 +321,7 @@ pub fn generate(
     });
     let dashboard_view_result = crate::render_template(
         rrgen,
-        Path::new("admin/view_dashboard"),
+        Path::new("admin/view_dashboard.t"),
         &dashboard_view_vars,
     )?;
     gen_result.rrgen.extend(dashboard_view_result.rrgen);
@@ -333,7 +333,7 @@ pub fn generate(
     let base_vars = json!({
         "prefix": prefix,
     });
-    let base_result = crate::render_template(rrgen, Path::new("admin/html/base"), &base_vars)?;
+    let base_result = crate::render_template(rrgen, Path::new("admin/html/base.t"), &base_vars)?;
     gen_result.rrgen.extend(base_result.rrgen);
     gen_result
         .local_templates
@@ -342,7 +342,7 @@ pub fn generate(
     // Generate dashboard HTML template
     let dashboard_html_result = crate::render_template(
         rrgen,
-        Path::new("admin/html/dashboard"),
+        Path::new("admin/html/dashboard.t"),
         &dashboard_view_vars,
     )?;
     gen_result.rrgen.extend(dashboard_html_result.rrgen);
@@ -406,7 +406,7 @@ fn generate_entity_admin(
         "pkg_name": appinfo.app_name
     });
 
-    crate::render_template(rrgen, Path::new("admin/controller"), &vars)
+    crate::render_template(rrgen, Path::new("admin/controller.t"), &vars)
 }
 
 /// Generate view modules and HTML templates for a single entity
@@ -466,22 +466,22 @@ fn generate_entity_views(
     });
 
     // Generate view module
-    let mut result = crate::render_template(rrgen, Path::new("admin/view"), &vars)?;
+    let mut result = crate::render_template(rrgen, Path::new("admin/view.t"), &vars)?;
 
     // Generate entity-specific HTML templates (list, create, edit, show)
-    let list_result = crate::render_template(rrgen, Path::new("admin/html/list"), &vars)?;
+    let list_result = crate::render_template(rrgen, Path::new("admin/html/list.t"), &vars)?;
     result.rrgen.extend(list_result.rrgen);
     result.local_templates.extend(list_result.local_templates);
 
-    let create_result = crate::render_template(rrgen, Path::new("admin/html/create"), &vars)?;
+    let create_result = crate::render_template(rrgen, Path::new("admin/html/create.t"), &vars)?;
     result.rrgen.extend(create_result.rrgen);
     result.local_templates.extend(create_result.local_templates);
 
-    let edit_result = crate::render_template(rrgen, Path::new("admin/html/edit"), &vars)?;
+    let edit_result = crate::render_template(rrgen, Path::new("admin/html/edit.t"), &vars)?;
     result.rrgen.extend(edit_result.rrgen);
     result.local_templates.extend(edit_result.local_templates);
 
-    let show_result = crate::render_template(rrgen, Path::new("admin/html/show"), &vars)?;
+    let show_result = crate::render_template(rrgen, Path::new("admin/html/show.t"), &vars)?;
     result.rrgen.extend(show_result.rrgen);
     result.local_templates.extend(show_result.local_templates);
 
