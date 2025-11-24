@@ -1,6 +1,6 @@
 ---
 source: src/controller/extractor/auth.rs
-expression: "extract_token(&jwt_config, &parts)"
+expression: "extract_token(&jwt_config, &parts, None)"
 snapshot_kind: text
 ---
 Ok(

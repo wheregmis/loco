@@ -22,6 +22,11 @@ message: "Admin base template was added successfully."
       <nav class="mt-4">
         <a href="{{prefix}}/" class="block px-4 py-2 hover:bg-gray-700">Dashboard</a>
         {% raw %}{% block nav_items %}{% endblock nav_items %}{% endraw %}
+        <form method="post" action="{{prefix}}/logout" class="px-4 py-2">
+          <button class="w-full rounded bg-gray-700 px-3 py-2 text-left text-sm font-medium hover:bg-gray-600" type="submit">
+            Logout
+          </button>
+        </form>
       </nav>
     </aside>
     

@@ -129,4 +129,10 @@ auth:
     secret: {{20 | random_string }}
     # Token expiration time in seconds
     expiration: 604800 # 7 days
+
+# Admin Panel Configuration
+admin:
+  username: {{ get_env(name="ADMIN_USERNAME", default="admin") }}
+  password: {{ get_env(name="ADMIN_PASSWORD", default="admin") }}
+  cookie_name: {{ get_env(name="ADMIN_COOKIE_NAME", default="loco_admin_token") }}
 {%- endif %}

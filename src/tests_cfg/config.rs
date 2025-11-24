@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
+use tree_fs::{Tree, TreeBuilder};
+
 use crate::{
     config::{self, Config},
     controller::middleware,
     logger, scheduler,
 };
-
-use tree_fs::{Tree, TreeBuilder};
 
 #[must_use]
 pub fn test_config() -> Config {
@@ -51,6 +51,7 @@ pub fn test_config() -> Config {
 
             output: scheduler::Output::STDOUT,
         }),
+        admin: None,
         // Always use in-memory cache for tests if available
         #[cfg(feature = "cache_inmem")]
         cache: config::CacheConfig::InMem(config::InMemCacheConfig {

@@ -53,6 +53,8 @@ pub struct Config {
     pub cache: CacheConfig,
     pub queue: Option<QueueConfig>,
     pub auth: Option<Auth>,
+    /// Admin panel configuration such as cookie name and fallback credentials
+    pub admin: Option<Admin>,
     #[serde(default)]
     pub workers: Workers,
     pub mailer: Option<Mailer>,
@@ -222,8 +224,8 @@ pub struct Database {
     pub dangerously_recreate: bool,
 
     // Execute query after initializing the DB
-    /// for e.g. this can be used to confiure PRAGMAs for `SQLite` where you can pass all values as a string.
-    /// Default values are:
+    /// for e.g. this can be used to confiure PRAGMAs for `SQLite` where you can
+    /// pass all values as a string. Default values are:
     ///
     /// PRAGMA `foreign_keys` = ON;
     ///
@@ -400,6 +402,49 @@ pub struct Auth {
     pub jwt: Option<JWT>,
 }
 
+fn default_admin_username() -> String {
+    DEFAULT_ADMIN_USERNAME.to_string()
+}
+
+fn default_admin_password() -> String {
+    DEFAULT_ADMIN_PASSWORD.to_string()
+}
+
+fn default_admin_cookie_name() -> String {
+    DEFAULT_ADMIN_COOKIE_NAME.to_string()
+}
+
+/// Default username used when no admin credentials are configured.
+pub const DEFAULT_ADMIN_USERNAME: &str = "admin";
+/// Default password used when no admin credentials are configured.
+pub const DEFAULT_ADMIN_PASSWORD: &str = "admin";
+/// Default JWT cookie name for admin panel sessions.
+pub const DEFAULT_ADMIN_COOKIE_NAME: &str = "loco_admin_token";
+
+/// Admin panel configuration.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Admin {
+    /// Username used for the generated admin login form.
+    #[serde(default = "default_admin_username")]
+    pub username: String,
+    /// Password used for the generated admin login form.
+    #[serde(default = "default_admin_password")]
+    pub password: String,
+    /// Cookie name that stores the admin JWT token.
+    #[serde(default = "default_admin_cookie_name")]
+    pub cookie_name: String,
+}
+
+impl Default for Admin {
+    fn default() -> Self {
+        Self {
+            username: default_admin_username(),
+            password: default_admin_password(),
+            cookie_name: default_admin_cookie_name(),
+        }
+    }
+}
+
 /// JWT configuration structure.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct JWT {
@@ -427,7 +472,8 @@ pub enum JWTLocation {
     Cookie { name: String },
 }
 
-/// Configuration for JWT location(s) - supports both single location and multiple locations
+/// Configuration for JWT location(s) - supports both single location and
+/// multiple locations
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum JWTLocationConfig {
@@ -656,6 +702,26 @@ impl Config {
                 || Err(Error::Any("no JWT config found".to_string().into())),
                 Ok,
             )
+    }
+
+    /// Returns the configured admin credentials, falling back to
+    /// `admin`/`admin`.
+    #[must_use]
+    pub fn admin_credentials(&self) -> (&str, &str) {
+        if let Some(admin) = self.admin.as_ref() {
+            (admin.username.as_str(), admin.password.as_str())
+        } else {
+            (DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD)
+        }
+    }
+
+    /// Returns the cookie name used to persist admin JWT sessions.
+    #[must_use]
+    pub fn admin_cookie_name(&self) -> &str {
+        self.admin
+            .as_ref()
+            .map(|admin| admin.cookie_name.as_str())
+            .unwrap_or(DEFAULT_ADMIN_COOKIE_NAME)
     }
 }
 

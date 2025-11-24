@@ -305,6 +305,13 @@ pub fn generate(
         .local_templates
         .extend(dashboard_result.local_templates);
 
+    let auth_result =
+        crate::render_template(rrgen, Path::new("admin/auth_controller.t"), &dashboard_vars)?;
+    gen_result.rrgen.extend(auth_result.rrgen);
+    gen_result
+        .local_templates
+        .extend(auth_result.local_templates);
+
     // Generate admin controller for each entity
     for entity in &entities {
         let entity_result = generate_entity_admin(rrgen, entity, prefix, appinfo)?;
@@ -384,6 +391,23 @@ pub fn generate(
     gen_result
         .local_templates
         .extend(dashboard_html_result.local_templates);
+
+    let login_view_result =
+        crate::render_template(rrgen, Path::new("admin/login_view.t"), &json!({}))?;
+    gen_result.rrgen.extend(login_view_result.rrgen);
+    gen_result
+        .local_templates
+        .extend(login_view_result.local_templates);
+
+    let login_html_result = crate::render_template(
+        rrgen,
+        Path::new("admin/html/login.t"),
+        &json!({ "prefix": prefix }),
+    )?;
+    gen_result.rrgen.extend(login_html_result.rrgen);
+    gen_result
+        .local_templates
+        .extend(login_html_result.local_templates);
 
     Ok(gen_result)
 }

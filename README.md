@@ -107,6 +107,10 @@ listening on port 5150
 ```
 <!-- </snip> -->
 
+## Admin Panel Generator
+
+Run `cargo loco generate admin` to scaffold a password-protected dashboard for every entity in your app. Visit `/admin/login` to sign in with the default `admin`/`admin` credentials (set in `config/*.yaml`). Successful logins mint a JWT that is stored inside the `loco_admin_token` cookie, so every browser request to `/admin/**` stays authenticated. Update the `admin.username`, `admin.password`, or `admin.cookie_name` keys in your environment configs as soon as you deploy.
+
 ## Powered by Loco
 + [SpectralOps](https://spectralops.io) - various services powered by Loco
   framework
